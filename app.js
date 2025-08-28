@@ -28,9 +28,17 @@ app.use(transcodeRoutes);
 app.use((req, res) => res.status(404).json({ error: "Not found" }));
 
 (async () => {
-  await initDb();
-  app.listen(PORT, () => {
-    console.log(`Server on http://localhost:${PORT}`);
-    console.log(`Storage: ${STORAGE_ROOT}`);
+  console.log("[boot] starting initDb()");
+  try {
+    await initDb();               // <— if we hang/crash, we'll see it now
+    console.log("[boot] initDb OK");
+  } catch (e) {
+    console.error("[boot] initDb FAILED:", e);
+    process.exit(1);
+  }
+
+  const PORT = process.env.PORT || 3000;
+  app.listen(PORT, "0.0.0.0", () => {
+    console.log(`[boot] server listening on 0.0.0.0:${PORT}`);
   });
 })();
