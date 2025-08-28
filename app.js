@@ -1,68 +1,36 @@
-const express = require('express');
-const fileUpload = require("express-fileupload");
-const JWT = require("./jwt.js");
-const path = require("path");
-const fs = require("fs");
-const ffmpeg = require("@ffmpeg-installer/ffmpeg");
-const { open } = require("sqlite");
-const sqlite3 = require("sqlite3");
-
+const express = require("express");
 const app = express();
-// const tasksRouter = require('./src/routes/tasks');
 
-app.use(express.json());
-//app.use('/tasks', tasksRouter);
+const fileUpload = require("express-fileupload");
+const path = require("path");
+
+const { initDb } = require("./src/db");
+const { STORAGE_ROOT } = require("./src/services/storageService");
+const healthRoutes = require("./src/routes/healthRoutes");
+const authRoutes = require("./src/routes/authRoutes");
+const fileRoutes = require("./src/routes/fileRoutes");
+const transcodeRoutes = require("./src/routes/transcodeRoutes");
 const PORT = 3000;
 
-// Simple hard-coded username and password for demonstration
-const users = {
-   CAB432: {
-      password: "supersecret",
-      admin: false,
-   },
-   admin: {
-      password: "admin",
-      admin: true,
-   },
-};
+app.use(express.json());
+app.use(fileUpload({ createParentPath: true, limits: { fileSize: 1024 * 1024 * 1024 } }));
 
-// User needs to login to obtain an authentication token
-app.post("/login", (req, res) => {
-   // Check the username and password
-   const { username, password } = req.body;
-   const user = users[username];
+// serve a simple client if placed in ./public
+app.use(express.static(path.join(__dirname, "public")));
 
-   if (!user || password !== user.password) {
-      return res.sendStatus(401);
-   }
+// mount routes
+app.use(healthRoutes);
+app.use(authRoutes);
+app.use(fileRoutes);
+app.use(transcodeRoutes);
 
-   // Get a new authentication token and send it back to the client
-   console.log("Successful login by user", username);
-   const token = JWT.generateAccessToken({ username });
-   res.json({ authToken: token });
-});
+// 404
+app.use((req, res) => res.status(404).json({ error: "Not found" }));
 
-// Main page protected by our authentication middleware
-app.get("/", JWT.authenticateToken, (req, res) => {
-   res.sendFile(path.join(__dirname, "public", "index.html"));
-});
-
-// Admin page requires admin permissions
-app.get("/admin", JWT.authenticateToken, (req, res) => {
-   // user info added to the request by JWT.authenticateToken
-   // Check user permissions
-   const user = users[req.user.username];
-
-   if (!user || !user.admin) {
-      // bad user or not admin
-      console.log("Unauthorised user requested admin content.");
-      return res.sendStatus(403);
-   }
-
-   // User permissions verified.
-   res.sendFile(path.join(__dirname, "public", "admin.html"));
-});
-
-app.listen(PORT, () => {
-   console.log(`Server listening on port ${PORT}.`);
-});
+(async () => {
+  await initDb();
+  app.listen(PORT, () => {
+    console.log(`Server on http://localhost:${PORT}`);
+    console.log(`Storage: ${STORAGE_ROOT}`);
+  });
+})();

@@ -18,12 +18,29 @@ async function initDb(opts = {}) {
   fs.mkdirSync(DB_DIR, { recursive: true });
 
   const filename = opts.filename || path.join(DB_DIR, "app.db");
+	const dir = path.dirname(filename);
+	// Optional: log the resolved path to help debug mounts/permissions
+  console.log(`[db] Using SQLite file: ${filename}`);
 
-  db = await open({
-    filename,
-    driver: sqlite3.Database,
+ try {
+    db = await open({ filename, driver: sqlite3.Database });
+  } catch (e) {
+    // Extra hint for common Docker/permission issues
+    if (String(e && e.code) === "SQLITE_CANTOPEN") {
+      console.error(
+        "[db] SQLITE_CANTOPEN. Check that the directory exists and is writable.\n" +
+        `      dir: ${dir}\n` +
+        "      Try: mkdir -p ./db && chmod -R 775 ./db\n" +
+        "      In Docker, ensure the mounted volume owner matches the container user."
+      );
+    }
+    throw e;
+  }
+/*  db = await open({ 
+	filename,
+    	driver: sqlite3.Database,
   });
-
+*/
   // Sensible pragmas for a small app
   await db.exec(`
     PRAGMA journal_mode = WAL;
