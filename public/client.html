@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Video Transcoder Client</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card: #111827;
+      --text: #e5e7eb;
+      --muted: #9ca3af;
+      --accent: #60a5fa;
+      --danger: #ef4444;
+      --ok: #22c55e;
+      --warn: #f59e0b;
+      --border: #1f2937;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial;
+      background: linear-gradient(180deg, #0b1220, #0f172a);
+      color: var(--text);
+    }
+    .container { max-width: 1100px; margin: 24px auto; padding: 0 16px; }
+    .grid { display: grid; gap: 16px; }
+    .two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    @media (max-width: 900px) { .two { grid-template-columns: 1fr; } }
+
+    .card {
+      background: linear-gradient(180deg, #0f172a, #0b1220);
+      border: 1px solid var(--border); border-radius: 14px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+      padding: 16px; position: relative; overflow: hidden;
+    }
+    h1 { font-size: 28px; margin: 0 0 12px; letter-spacing: 0.3px; }
+    h2 { font-size: 18px; margin: 0 0 8px; color: var(--muted); font-weight: 600; }
+    label { display:block; margin: 8px 0 6px; color: var(--muted); font-size: 14px; }
+    input[type="text"], input[type="password"], select {
+      width: 100%; padding: 10px 12px; background: #0b1220; color: var(--text);
+      border: 1px solid var(--border); border-radius: 10px; outline: none;
+    }
+    button {
+      background: linear-gradient(180deg, #2563eb, #1d4ed8);
+      border: none; color: white; padding: 10px 14px; border-radius: 10px; cursor: pointer;
+      font-weight: 600; transition: transform .08s ease, opacity .2s;
+    }
+    button:hover { opacity: .95; }
+    button:active { transform: translateY(1px); }
+    button.ghost { background: transparent; border: 1px solid var(--border); color: var(--text); }
+    button.danger { background: linear-gradient(180deg, #ef4444, #dc2626); }
+    button.warn { background: linear-gradient(180deg, #f59e0b, #d97706); }
+    button.ok { background: linear-gradient(180deg, #16a34a, #15803d); }
+
+    .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .muted { color: var(--muted); font-size: 13px; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; }
+    .pill { padding: 2px 8px; border-radius: 999px; font-size: 12px; border: 1px solid var(--border); }
+    .status { text-transform: uppercase; letter-spacing: .06em; }
+
+    .dropzone {
+      border: 2px dashed #374151; border-radius: 12px; padding: 20px; text-align: center;
+      background: #0b1220; color: var(--muted);
+    }
+    .dropzone.dragover { border-color: var(--accent); color: var(--text); }
+
+    table { width: 100%; border-collapse: collapse; }
+    th, td { border-bottom: 1px solid var(--border); padding: 10px; text-align: left; vertical-align: middle; }
+    th { color: var(--muted); font-size: 13px; font-weight: 600; }
+    tbody tr:hover { background: rgba(96,165,250,0.06); }
+
+    .progress { height: 8px; background: #111827; border-radius: 999px; overflow: hidden; border: 1px solid var(--border); }
+    .bar { height: 100%; width: 0%; background: linear-gradient(90deg, #60a5fa, #34d399); }
+
+    .footer { margin-top: 20px; color: var(--muted); font-size: 13px; }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <div class="container grid">
+    <h1>🎬 Video Transcoder Client</h1>
+
+    <div class="card grid two" id="setup">
+      <div>
+        <h2>Server</h2>
+        <label for="baseUrl">Base URL</label>
+        <input id="baseUrl" type="text" placeholder="http://localhost:3000" />
+        <div class="row" style="margin-top:10px;">
+          <button id="saveBase">Save Base URL</button>
+          <button class="ghost" id="ping">Ping /healthz</button>
+          <span id="pingResult" class="muted"></span>
+        </div>
+        <p class="muted" style="margin-top:8px;">Tip: serve this file from the <span class="mono">same origin</span> as the API or enable CORS on the server.</p>
+      </div>
+      <div>
+        <h2>Login</h2>
+        <label for="username">Username</label>
+        <input id="username" type="text" placeholder="alice" />
+        <label for="password">Password</label>
+        <input id="password" type="password" placeholder="password1" />
+        <div class="row" style="margin-top:10px;">
+          <button id="loginBtn">Login</button>
+          <button class="ghost" id="logoutBtn">Logout</button>
+        </div>
+        <p class="muted" style="margin-top:8px;">Token: <span id="tokenPreview" class="mono"></span></p>
+      </div>
+    </div>
+
+    <div class="card" id="uploadCard">
+      <h2>Upload</h2>
+      <div id="dropzone" class="dropzone">Drop videos here or click to select…<br><span class="muted">Max ~1GB per file (configurable)</span></div>
+      <input id="fileInput" type="file" accept="video/*" multiple class="hidden" />
+      <div id="uploads"></div>
+    </div>
+
+    <div class="grid two">
+      <div class="card">
+        <div class="row" style="justify-content:space-between;">
+          <h2>My Originals</h2>
+          <div class="row">
+            <button id="refreshBtn" class="ghost">Refresh</button>
+          </div>
+        </div>
+        <div class="muted" id="emptyOriginals" style="margin-top:6px;">No uploads yet.</div>
+        <table id="origTable" class="hidden">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Name</th>
+              <th>Size</th>
+              <th>Created</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <div class="row" style="justify-content:space-between;">
+          <h2>Transcodes</h2>
+          <div class="row">
+            <button id="pollBtn" class="warn">Start Auto-Poll</button>
+            <button id="stopPollBtn" class="ghost">Stop</button>
+          </div>
+        </div>
+        <div class="muted" id="emptyOutputs" style="margin-top:6px;">No jobs yet.</div>
+        <table id="outTable" class="hidden">
+          <thead>
+            <tr>
+              <th>Job</th>
+              <th>Video</th>
+              <th>Format</th>
+              <th>Status</th>
+              <th>Updated</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="footer">
+      <span class="muted">Client v1 · Works with the Node/Express server spec (JWT, /upload, /files, /transcode, /download)</span>
+    </div>
+  </div>
+
+  <script>
+    const els = {
+      baseUrl: document.getElementById('baseUrl'),
+      saveBase: document.getElementById('saveBase'),
+      ping: document.getElementById('ping'),
+      pingResult: document.getElementById('pingResult'),
+      username: document.getElementById('username'),
+      password: document.getElementById('password'),
+      loginBtn: document.getElementById('loginBtn'),
+      logoutBtn: document.getElementById('logoutBtn'),
+      tokenPreview: document.getElementById('tokenPreview'),
+      dropzone: document.getElementById('dropzone'),
+      fileInput: document.getElementById('fileInput'),
+      uploads: document.getElementById('uploads'),
+      refreshBtn: document.getElementById('refreshBtn'),
+      origTable: document.getElementById('origTable'),
+      outTable: document.getElementById('outTable'),
+      emptyOriginals: document.getElementById('emptyOriginals'),
+      emptyOutputs: document.getElementById('emptyOutputs'),
+      pollBtn: document.getElementById('pollBtn'),
+      stopPollBtn: document.getElementById('stopPollBtn'),
+    };
+
+    const state = {
+      baseUrl: localStorage.getItem('baseUrl') || 'http://localhost:3000',
+      token: localStorage.getItem('token') || '',
+      polling: null,
+    };
+
+    function updateUIAuth() {
+      els.tokenPreview.textContent = state.token ? mask(state.token) : '(none)';
+      document.getElementById('uploadCard').classList.toggle('hidden', !state.token);
+      document.getElementById('origTable').classList.toggle('hidden', true);
+      document.getElementById('outTable').classList.toggle('hidden', true);
+      els.emptyOriginals.classList.remove('hidden');
+      els.emptyOutputs.classList.remove('hidden');
+    }
+
+    function mask(t) {
+      if (!t) return '';
+      return t.slice(0, 12) + '…' + t.slice(-12);
+    }
+
+    async function api(path, { method = 'GET', body, isBlob = false } = {}) {
+      const headers = { 'Content-Type': 'application/json' };
+      if (state.token) headers['Authorization'] = 'Bearer ' + state.token;
+      const res = await fetch(state.baseUrl + path, { method, headers, body: body ? JSON.stringify(body) : undefined });
+      if (!res.ok) {
+        let msg = await res.text().catch(() => '');
+        try { const j = JSON.parse(msg); msg = j.error || msg; } catch {}
+        throw new Error(msg || res.status + ' ' + res.statusText);
+      }
+      return isBlob ? res.blob() : res.json();
+    }
+
+    // Setup base URL
+    els.baseUrl.value = state.baseUrl;
+    els.saveBase.addEventListener('click', () => {
+      state.baseUrl = els.baseUrl.value.trim().replace(/\/$/, '');
+      localStorage.setItem('baseUrl', state.baseUrl);
+      toast('Saved base URL');
+    });
+    els.ping.addEventListener('click', async () => {
+      try { const r = await fetch(state.baseUrl + '/healthz').then(r => r.json()); els.pingResult.textContent = r.ok ? 'Healthy ✓' : 'Unhealthy'; }
+      catch (e) { els.pingResult.textContent = 'No response'; }
+      setTimeout(() => els.pingResult.textContent = '', 2500);
+    });
+
+    // Auth
+    els.loginBtn.addEventListener('click', async () => {
+      const username = els.username.value.trim();
+      const password = els.password.value.trim();
+      if (!username || !password) return toast('Enter credentials', true);
+      try {
+        const r = await api('/login', { method: 'POST', body: { username, password } });
+        state.token = r.token; localStorage.setItem('token', state.token);
+        updateUIAuth();
+        await refresh();
+        toast('Logged in');
+      } catch (e) { toast('Login failed: ' + e.message, true); }
+    });
+    els.logoutBtn.addEventListener('click', () => {
+      state.token = ''; localStorage.removeItem('token'); updateUIAuth(); toast('Logged out');
+    });
+
+    // Uploads: dropzone + file input
+    els.dropzone.addEventListener('click', () => els.fileInput.click());
+    ;['dragenter', 'dragover'].forEach(evt => els.dropzone.addEventListener(evt, e => { e.preventDefault(); e.stopPropagation(); els.dropzone.classList.add('dragover'); }));
+    ;['dragleave', 'drop'].forEach(evt => els.dropzone.addEventListener(evt, e => { e.preventDefault(); e.stopPropagation(); els.dropzone.classList.remove('dragover'); }));
+    els.dropzone.addEventListener('drop', e => handleFiles(e.dataTransfer.files));
+    els.fileInput.addEventListener('change', e => handleFiles(e.target.files));
+
+    function handleFiles(files) {
+      if (!state.token) return toast('Login first', true);
+      [...files].forEach(uploadFile);
+      els.fileInput.value = '';
+    }
+
+    function uploadFile(file) {
+      const row = document.createElement('div');
+      row.style.marginTop = '10px';
+      row.innerHTML = `
+        <div class="row" style="justify-content:space-between;">
+          <div>
+            <div class="mono">${escapeHtml(file.name)}</div>
+            <div class="muted">${(file.size/1024/1024).toFixed(2)} MB</div>
+          </div>
+          <div style="flex:1; margin-left: 16px;">
+            <div class="progress"><div class="bar"></div></div>
+          </div>
+          <div class="muted pill status" style="margin-left:8px;">Queued</div>
+        </div>`;
+      els.uploads.prepend(row);
+      const bar = row.querySelector('.bar');
+      const status = row.querySelector('.status');
+
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', state.baseUrl + '/upload');
+      xhr.setRequestHeader('Authorization', 'Bearer ' + state.token);
+      const form = new FormData();
+      form.append('file', file);
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) {
+          const pct = Math.round((e.loaded / e.total) * 100);
+          bar.style.width = pct + '%';
+          status.textContent = pct + '%';
+        }
+      };
+      xhr.onload = async () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          bar.style.width = '100%'; status.textContent = 'Done'; status.classList.add('ok');
+          await refresh();
+        } else {
+          status.textContent = 'Error'; status.classList.add('danger');
+          toast('Upload failed: ' + xhr.responseText, true);
+        }
+      };
+      xhr.onerror = () => { status.textContent = 'Error'; status.classList.add('danger'); toast('Upload error', true); };
+      xhr.send(form);
+    }
+
+    // List files
+    els.refreshBtn.addEventListener('click', refresh);
+    async function refresh() {
+      if (!state.token) return;
+      try {
+        const data = await api('/files');
+        renderOriginals(data.originals || []);
+        renderOutputs(data.outputs || []);
+      } catch (e) { toast('List failed: ' + e.message, true); }
+    }
+
+    function renderOriginals(items) {
+      const tbody = els.origTable.querySelector('tbody');
+      tbody.innerHTML = '';
+      if (!items.length) {
+        els.emptyOriginals.classList.remove('hidden');
+        els.origTable.classList.add('hidden');
+        return;
+      }
+      els.emptyOriginals.classList.add('hidden');
+      els.origTable.classList.remove('hidden');
+      for (const it of items) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td class="mono">${escapeHtml(it.id)}</td>
+          <td>${escapeHtml(it.name)}</td>
+          <td class="muted">${fmtBytes(it.size_bytes)}</td>
+          <td class="muted">${new Date(it.created_at + 'Z').toLocaleString()}</td>
+          <td>
+            <div class="row">
+              <select data-action="format">
+                <option value="mp4">mp4 (H.264/AAC)</option>
+                <option value="webm">webm (VP9/Opus)</option>
+                <option value="mkv">mkv (H.264/AAC)</option>
+                <option value="copy">remux (copy)</option>
+              </select>
+              <button data-action="transcode" data-id="${it.id}">Transcode</button>
+              <button class="ghost" data-action="download-original" data-id="${it.id}">Download</button>
+            </div>
+          </td>`;
+        tbody.appendChild(tr);
+      }
+      // attach listeners
+      tbody.querySelectorAll('button[data-action="transcode"]').forEach(btn => btn.onclick = onTranscodeClick);
+      tbody.querySelectorAll('button[data-action="download-original"]').forEach(btn => btn.onclick = onDownloadOriginal);
+    }
+
+    async function onTranscodeClick(e) {
+      const btn = e.currentTarget;
+      const vid = btn.getAttribute('data-id');
+      const fmt = btn.closest('tr').querySelector('select[data-action="format"]').value;
+      const format = fmt === 'copy' ? '' : fmt; // server will treat empty as copy via default branch
+      try {
+        const body = { videoId: vid, format: format || 'mp4' }; // ensure non-empty for API
+        const r = await api('/transcode', { method: 'POST', body });
+        toast('Queued job ' + r.jobId);
+        await refresh();
+      } catch (err) {
+        toast('Transcode failed: ' + err.message, true);
+      }
+    }
+
+    async function onDownloadOriginal(e) {
+      const id = e.currentTarget.getAttribute('data-id');
+      try {
+        const blob = await api(`/download/${id}?type=original`, { isBlob: true });
+        saveBlob(blob, id + '-original');
+      } catch (err) { toast('Download failed: ' + err.message, true); }
+    }
+
+    function renderOutputs(items) {
+      const tbody = els.outTable.querySelector('tbody');
+      tbody.innerHTML = '';
+      if (!items.length) {
+        els.emptyOutputs.classList.remove('hidden');
+        els.outTable.classList.add('hidden');
+        return;
+      }
+      els.emptyOutputs.classList.add('hidden');
+      els.outTable.classList.remove('hidden');
+      for (const it of items) {
+        const s = String(it.status || '').toLowerCase();
+        const color = s === 'done' ? 'ok' : s === 'processing' ? 'warn' : s === 'error' ? 'danger' : '';
+        const disabled = s !== 'done';
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td class="mono">${escapeHtml(it.id)}</td>
+          <td class="mono">${escapeHtml(it.video_id)}</td>
+          <td>${escapeHtml(it.target_format)}</td>
+          <td><span class="pill status ${color}">${escapeHtml(it.status)}</span> ${it.error_msg ? `<span class="muted">· ${escapeHtml(it.error_msg)}</span>` : ''}</td>
+          <td class="muted">${new Date(it.updated_at + 'Z').toLocaleString()}</td>
+          <td>
+            <div class="row">
+              <button data-action="download-output" data-video="${it.video_id}" data-format="${it.target_format}" ${disabled ? 'disabled' : ''}>Download</button>
+              <button class="ghost" data-action="check-job" data-id="${it.id}">Check</button>
+            </div>
+          </td>`;
+        tbody.appendChild(tr);
+      }
+      tbody.querySelectorAll('button[data-action="download-output"]').forEach(btn => btn.onclick = onDownloadOutput);
+      tbody.querySelectorAll('button[data-action="check-job"]').forEach(btn => btn.onclick = onCheckJob);
+    }
+
+    async function onCheckJob(e) {
+      const id = e.currentTarget.getAttribute('data-id');
+      try {
+        const j = await api(`/job/${id}`);
+        toast(`Job ${j.id}: ${j.status}${j.error_msg ? ' – ' + j.error_msg : ''}`);
+        await refresh();
+      } catch (err) { toast('Check failed: ' + err.message, true); }
+    }
+
+    async function onDownloadOutput(e) {
+      const btn = e.currentTarget;
+      const vid = btn.getAttribute('data-video');
+      const format = btn.getAttribute('data-format');
+      try {
+        const blob = await api(`/download/${vid}?type=output&format=${encodeURIComponent(format)}`, { isBlob: true });
+        saveBlob(blob, `${vid}.${format}`);
+      } catch (err) { toast('Download failed: ' + err.message, true); }
+    }
+
+    function saveBlob(blob, filenameBase) {
+      const a = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      a.href = url; a.download = filenameBase; a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+
+    function toast(msg, isErr) {
+      const n = document.createElement('div');
+      n.textContent = msg;
+      n.style.position = 'fixed'; n.style.bottom = '16px'; n.style.right = '16px'; n.style.padding = '10px 12px';
+      n.style.borderRadius = '10px'; n.style.background = isErr ? '#7f1d1d' : '#064e3b'; n.style.color = '#fff';
+      n.style.boxShadow = '0 10px 30px rgba(0,0,0,.3)';
+      document.body.appendChild(n);
+      setTimeout(() => n.remove(), 2600);
+    }
+
+    function fmtBytes(n) {
+      if (!n && n !== 0) return '—';
+      const k = 1024; const sizes = ['B','KB','MB','GB','TB'];
+      const i = Math.floor(Math.log(n) / Math.log(k));
+      return (n / Math.pow(k, i)).toFixed(2) + ' ' + sizes[i];
+    }
+
+    function escapeHtml(s) {
+      return String(s).replace(/[&<>\"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
+    }
+
+    // Polling
+    els.pollBtn.addEventListener('click', () => {
+      if (state.polling) return;
+      state.polling = setInterval(refresh, 4000);
+      toast('Auto-polling started');
+    });
+    els.stopPollBtn.addEventListener('click', () => {
+      if (state.polling) { clearInterval(state.polling); state.polling = null; toast('Auto-polling stopped'); }
+    });
+
+    // init
+    updateUIAuth();
+    if (state.token) refresh();
+  </script>
+</body>
+</html>
