@@ -12,6 +12,9 @@ const fileRoutes = require("./src/routes/fileRoutes");
 const transcodeRoutes = require("./src/routes/transcodeRoutes");
 const PORT = 3000;
 
+// add a quick logger near the top of app.js
+app.use((req, _res, next) => { console.log(req.method, req.url, req.headers.authorization || '-'); next(); });
+
 app.use(express.json());
 app.use(fileUpload({ createParentPath: true, limits: { fileSize: 1024 * 1024 * 1024 } }));
 

@@ -51,7 +51,7 @@ async function initDb(opts = {}) {
   await db.exec(`
     CREATE TABLE IF NOT EXISTS videos (
       id TEXT PRIMARY KEY,
-      owner INTEGER NOT NULL,
+      owner INTEGER ,
       original_name TEXT NOT NULL,
       original_path TEXT NOT NULL,
       size_bytes INTEGER,
@@ -61,7 +61,7 @@ async function initDb(opts = {}) {
     CREATE TABLE IF NOT EXISTS transcodes (
       id TEXT PRIMARY KEY,
       video_id TEXT NOT NULL,
-      owner INTEGER NOT NULL,
+      owner INTEGER ,
       target_format TEXT NOT NULL,
       output_path TEXT NOT NULL,
       status TEXT NOT NULL,         -- queued|processing|done|error
