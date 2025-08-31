@@ -17,7 +17,7 @@ app.use((req, _res, next) => { console.log(req.method, req.url, req.headers.auth
 
 app.use(express.json());
 app.use(fileUpload({ createParentPath: true, limits: { fileSize: 1024 * 1024 * 1024 } }));
-
+app.set("etag", false);
 // serve a simple client if placed in ./public
 app.use(express.static(path.join(__dirname, "public")));
 
@@ -26,6 +26,17 @@ app.use(healthRoutes);
 app.use(authRoutes);
 app.use(fileRoutes);
 app.use(transcodeRoutes);
+
+const { getDb, getDbPath } = require("./src/db");
+app.get("/__debug/db", async (req, res) => {
+  try {
+    const db = getDb();
+    const rows = await db.all(`SELECT id, owner, original_name FROM videos ORDER BY created_at DESC LIMIT 5`);
+    res.json({ dbPath: getDbPath(), rows });
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
+  }
+});
 
 // 404
 app.use((req, res) => res.status(404).json({ error: "Not found" }));

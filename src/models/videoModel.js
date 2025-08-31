@@ -10,18 +10,24 @@ async function createVideo({ id, owner, name, path, size }) {
   return id;
 }
 
+/** List by owner (cast owner to integer to avoid binding quirks) */
+async function listVideosByOwner(owner) {
+  const db = getDb();
+  const o = Number(owner);
+  const rows = await db.all(
+    `SELECT id, original_name AS name, size_bytes, created_at
+     FROM videos
+     WHERE owner = ?
+     ORDER BY datetime(created_at) DESC`,
+    [o]
+  );
+  console.log(`[model:videos] owner=${o} -> ${rows.length} rows`);
+  return rows;
+}
+
 async function findVideoByIdOwner(id, owner) {
   const db = getDb();
   return db.get(`SELECT * FROM videos WHERE id=? AND owner=?`, [id, owner]);
-}
-
-async function listVideosByOwner(owner) {
-  const db = getDb();
-  return db.all(
-    `SELECT id, original_name AS name, size_bytes, created_at
-     FROM videos WHERE owner=? ORDER BY created_at DESC`,
-    [owner]
-  );
 }
 
 module.exports = { createVideo, findVideoByIdOwner, listVideosByOwner };

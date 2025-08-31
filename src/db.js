@@ -4,7 +4,7 @@ const path = require("path");
 const { open } = require("sqlite");
 const sqlite3 = require("sqlite3");
 
-let db;
+let db, filename;
 
 /**
  * Initialise the database connection and schema.
@@ -13,14 +13,11 @@ let db;
  * @returns {Promise<import('sqlite').Database>}
  */
 async function initDb(opts = {}) {
-  const ROOT = path.join(__dirname, "..");           // project root (one level up from src/)
-  const DB_DIR = path.join(ROOT, "db");
-  fs.mkdirSync(DB_DIR, { recursive: true });
+	const defaultFile = path.join(__dirname, "..", "db", "app.db");
+  	filename = opts.filename || process.env.DB_FILE || defaultFile;
 
-  const filename = opts.filename || path.join(DB_DIR, "app.db");
-	const dir = path.dirname(filename);
-	// Optional: log the resolved path to help debug mounts/permissions
-  console.log(`[db] Using SQLite file: ${filename}`);
+	fs.mkdirSync(path.dirname(filename), { recursive: true });
+  	console.log(`[db] Using SQLite file: ${filename}`);
 
  try {
     db = await open({ filename, driver: sqlite3.Database });
@@ -36,11 +33,12 @@ async function initDb(opts = {}) {
     }
     throw e;
   }
-/*  db = await open({ 
+  db = await open({ 
 	filename,
     	driver: sqlite3.Database,
   });
-*/
+
+
   // Sensible pragmas for a small app
   await db.exec(`
     PRAGMA journal_mode = WAL;
@@ -51,7 +49,7 @@ async function initDb(opts = {}) {
   await db.exec(`
     CREATE TABLE IF NOT EXISTS videos (
       id TEXT PRIMARY KEY,
-      owner INTEGER ,
+      owner INTEGER NOT NULL,
       original_name TEXT NOT NULL,
       original_path TEXT NOT NULL,
       size_bytes INTEGER,
@@ -61,7 +59,7 @@ async function initDb(opts = {}) {
     CREATE TABLE IF NOT EXISTS transcodes (
       id TEXT PRIMARY KEY,
       video_id TEXT NOT NULL,
-      owner INTEGER ,
+      owner INTEGER NOT NULL,
       target_format TEXT NOT NULL,
       output_path TEXT NOT NULL,
       status TEXT NOT NULL,         -- queued|processing|done|error
@@ -87,7 +85,7 @@ function getDb() {
   if (!db) throw new Error("DB not initialised. Call initDb() first.");
   return db;
 }
-
+function getDbPath() { return filename; }
 /**
  * Close the DB (optional helper for tests/shutdown).
  */
@@ -98,4 +96,4 @@ async function closeDb() {
   }
 }
 
-module.exports = { initDb, getDb, closeDb };
+module.exports = { initDb, getDb, closeDb, getDbPath };

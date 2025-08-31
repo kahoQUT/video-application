@@ -33,11 +33,16 @@ async function findDoneOutput({ videoId, owner, format }) {
 
 async function listJobsByOwner(owner) {
   const db = getDb();
-  return db.all(
+  const o = Number(owner);
+  const rows = await db.all(
     `SELECT id, video_id, target_format, status, error_msg, created_at, updated_at
-     FROM transcodes WHERE owner=? ORDER BY created_at DESC`,
-    [owner]
+     FROM transcodes
+     WHERE owner = ?
+     ORDER BY datetime(created_at) DESC`,
+    [o]
   );
+  console.log(`[model:transcodes] owner=${o} -> ${rows.length} rows`);
+  return rows;
 }
 
 module.exports = { createJob, updateStatus, findJobByIdOwner, findDoneOutput, listJobsByOwner };

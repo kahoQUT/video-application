@@ -1,9 +1,9 @@
 const { Router } = require("express");
-const auth = require("../middleware/auth");
 const { requestTranscode, getJob, downloadOutput } = require("../controllers/transcodeController");
 const router = Router();
+const { authenticateToken } = require("../../jwt");
 
-router.post("/transcode", auth, requestTranscode);
-router.get("/job/:id", auth, getJob);
-router.get("/download/:id", auth, downloadOutput); 
+router.post("/transcode", authenticateToken, requestTranscode);
+router.get("/job/:id", authenticateToken, getJob);
+router.get("/download/:id", authenticateToken, downloadOutput);
 module.exports = router;

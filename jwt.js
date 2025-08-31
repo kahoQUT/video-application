@@ -50,7 +50,7 @@ function authenticateToken(req, res, next) {
     
     // Attach normalized user; controllers can use req.user.id (may be null for legacy tokens)
     req.user = { id, username };
-    return next();
+    next();
   } catch (err) {
     console.log(`JWT verification failed at URL ${req.url}`, err.name, err.message);
     return res.sendStatus(401);

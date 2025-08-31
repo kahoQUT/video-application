@@ -12,18 +12,25 @@ async function upload(req, res) {
   const vid = makeId("vid_");
   const dest = path.join(ORIGINALS_DIR, `${vid}${ext}`);
   await f.mv(dest);
-  await createVideo({ id: vid, owner: req.user.sub, name: f.name, path: dest, size: f.size });
+  await createVideo({ id: vid, owner: req.user.id, name: f.name, path: dest, size: f.size });
   res.status(201).json({ id: vid, name: f.name, size: f.size || null });
 }
 
 async function listFiles(req, res) {
-  const originals = await listVideosByOwner(req.user.sub);
-  const outputs = await listJobsByOwner(req.user.sub);
+	const owner = req.user?.id ?? req.user?.sub; // <= accept both, prefer .id
+  	if (!owner) return res.status(401).json({ error: "No user id in token" });
+
+  const originals = await listVideosByOwner(owner);
+  const outputs = await listJobsByOwner(owner);
+
+console.log(`[files] owner=${Number(owner)} originals=${originals.length} outputs=${outputs.length}`);
+res.set("Cache-Control", "no-store, no-cache, must-revalidate");
   res.json({ originals, outputs });
 }
 
 async function download(req, res) {
   const type = String(req.query.type || "original");
+  if (type !== "original") return next();
   const id = req.params.id;
 
   if (type === "original") {
