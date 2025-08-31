@@ -55,3 +55,5 @@ Thumbs.db
 
 # Optional: if you generate client bundles
 public/*.map
+
+awscliv2.zip

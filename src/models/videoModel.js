@@ -10,7 +10,6 @@ async function createVideo({ id, owner, name, path, size }) {
   return id;
 }
 
-/** List by owner (cast owner to integer to avoid binding quirks) */
 async function listVideosByOwner(owner) {
   const db = getDb();
   const o = Number(owner);
@@ -30,4 +29,11 @@ async function findVideoByIdOwner(id, owner) {
   return db.get(`SELECT * FROM videos WHERE id=? AND owner=?`, [id, owner]);
 }
 
-module.exports = { createVideo, findVideoByIdOwner, listVideosByOwner };
+async function listVideosAll() {
+  return getDb().all(
+    `SELECT id, owner, original_name AS name, size_bytes, created_at
+     FROM videos ORDER BY datetime(created_at) DESC`
+  );
+}
+
+module.exports = { createVideo, findVideoByIdOwner, listVideosByOwner, listVideosAll  };

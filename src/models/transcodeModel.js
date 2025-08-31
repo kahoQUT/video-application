@@ -45,4 +45,11 @@ async function listJobsByOwner(owner) {
   return rows;
 }
 
-module.exports = { createJob, updateStatus, findJobByIdOwner, findDoneOutput, listJobsByOwner };
+async function listJobsAll() {
+  return getDb().all(
+    `SELECT id, video_id, owner, target_format, status, error_msg, created_at, updated_at
+     FROM transcodes ORDER BY datetime(created_at) DESC`
+  );
+}
+
+module.exports = { createJob, updateStatus, findJobByIdOwner, findDoneOutput, listJobsByOwner, listJobsAll };

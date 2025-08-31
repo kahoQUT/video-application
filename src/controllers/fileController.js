@@ -2,8 +2,8 @@ const fs = require("fs");
 const path = require("path");
 const { ORIGINALS_DIR } = require("../services/storageService");
 const { makeId } = require("../services/idService");
-const { listVideosByOwner, createVideo, findVideoByIdOwner } = require("../models/videoModel");
-const { listJobsByOwner } = require("../models/transcodeModel");
+const { listVideosByOwner, createVideo, findVideoByIdOwner, listVideosAll } = require("../models/videoModel");
+const { listJobsByOwner, listJobsAll } = require("../models/transcodeModel");
 
 async function upload(req, res) {
   if (!req.files || !req.files.file) return res.status(400).json({ error: "No file uploaded" });
@@ -17,15 +17,25 @@ async function upload(req, res) {
 }
 
 async function listFiles(req, res) {
-	const owner = req.user?.id ?? req.user?.sub; // <= accept both, prefer .id
-  	if (!owner) return res.status(401).json({ error: "No user id in token" });
+  const owner = req.user?.id ?? req.user?.sub; // <= accept both, prefer .id
+  if (!owner) return res.status(401).json({ error: "No user id in token" });
+  const isAdmin = req.user?.role === "admin";
+const showAll = isAdmin ? true : false;
 
-  const originals = await listVideosByOwner(owner);
-  const outputs = await listJobsByOwner(owner);
+  let originals, outputs;
+  if (showAll) {
+    originals = await listVideosAll();
+    outputs   = await listJobsAll();
+  } else {
+    originals = await listVideosByOwner(owner);
+    outputs   = await listJobsByOwner(owner);
+  }
 
-console.log(`[files] owner=${Number(owner)} originals=${originals.length} outputs=${outputs.length}`);
+  const scope = showAll ? "all" : "mine";
+  
+console.log(`[files] user=${req.user.username} role=${req.user.role} scope=${showAll ? "all" : "mine"} originals=${originals.length} outputs=${outputs.length}`);
 res.set("Cache-Control", "no-store, no-cache, must-revalidate");
-  res.json({ originals, outputs });
+res.json({ originals, outputs, scope });
 }
 
 async function download(req, res) {
