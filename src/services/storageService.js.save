@@ -1,0 +1,55 @@
+const { S3Client, PutObjectCommand, GetObjectCommand } = require("@aws-sdk/client-s3");
+const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
+const fs = require("fs");
+const path = require("path");
+
+const S3_BUCKET = 'n12104353-a2';
+const s3 = new S3Client({ region: "ap-southeast-2" });
+
+function keyOriginal(owner, videoId, filename) {
+  return `originals/${owner}/${videoId}/${filename}`;
+}
+function keyOutput(owner, videoId, format) {
+  return `outputs/${owner}/${videoId}/${videoId}.${format}`;
+}
+
+async function uploadOriginal({ owner, videoId, filePath, originalName }) {
+  const Key = keyOriginal(owner, videoId, originalName);
+  await s3.send(new PutObjectCommand({
+    Bucket: S3_BUCKET,
+    Key,
+    Body: fs.createReadStream(filePath),
+    ContentType: "application/octet-stream",
+  }));
+  return { bucket: S3_BUCKET, key: Key };
+}
+
+async function downloadOriginalToTmp({ owner, videoId, originalName }) {
+  // used by ffmpeg: stream S3 → local tmp file
+  const Key = keyOriginal(owner, videoId, originalName);
+  const out = path.join(process.env.TMPDIR || "/tmp", `${videoId}-${Date.now()}-${originalName}`);
+  const res = await s3.send(new GetObjectCommand({ Bucket: S3_BUCKET, Key }));
+  await new Promise((resolve, reject) => {
+    const write = fs.createWriteStream(out);
+    res.Body.pipe(write).on("finish", resolve).on("error", reject);
+  });
+  return out;
+}
+
+async function uploadOutput({ owner, videoId, format, filePath }) {
+  const Key = keyOutput(owner, videoId, format);
+  await s3.send(new PutObjectCommand({
+    Bucket: S3_BUCKET,
+    Key,
+    Body: fs.createReadStream(filePath),
+    ContentType: "application/octet-stream",
+  }));
+  return { bucket: S3_BUCKET, key: Key };
+}
+
+async function presignDownload({ bucket, key, expires = 3600 }) {
+  return getSignedUrl(s3, new GetObjectCommand({ Bucket: bucket, Key: key }), { expiresIn: expires });
+}
+
+
+module.exports = { ROOT, STORAGE_ROOT, ORIGINALS_DIR, OUTPUTS_DIR };

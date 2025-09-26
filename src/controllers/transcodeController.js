@@ -1,80 +1,65 @@
-// src/controllers/transcodeController.js
 const fs = require("fs");
 const path = require("path");
-const { OUTPUTS_DIR } = require("../services/storageService");
 const { makeId } = require("../services/idService");
 const { buildArgs, runFfmpeg } = require("../services/ffmpegService");
 const { findVideoByIdOwner } = require("../models/videoModel");
-const {
-  createJob,
-  updateStatus,
-  findJobByIdOwner,
-  findDoneOutput,
-} = require("../models/transcodeModel");
+const { createJob, updateStatus, findJobByIdOwner, findDoneOutput } = require("../models/transcodeModel");
+const { downloadOriginalToTmp, uploadOutput, presign, keyOutput } = require("../services/storageService");
 
-function getOwner(req) {
-  return req.user?.id ?? req.user?.sub ?? null;
-}
+function ownerOf(req) { return req.user?.sub; }
 
 async function requestTranscode(req, res) {
   const { videoId, format } = req.body || {};
-  if (!videoId || !format)
-    return res.status(400).json({ error: "videoId and format required" });
+  if (!videoId || !format) return res.status(400).json({ error: "videoId and format required" });
 
-  const owner = getOwner(req);
-  if (!owner) return res.status(401).json({ error: "No user id in token" });
+  const owner = ownerOf(req);
+  const tFmt = String(format).toLowerCase();
 
-  const tFmt = String(format).trim().toLowerCase();
-  console.log(`[transcode] owner=${owner} videoId=${videoId} format=${tFmt}`);
-
-  const v = await findVideoByIdOwner(videoId, owner);
-  if (!v) return res.status(404).json({ error: "Video not found" });
+  const meta = await findVideoByIdOwner(videoId, owner);
+  if (!meta) return res.status(404).json({ error: "Video not found" });
 
   const jobId = makeId("job_");
-  const outPath = path.join(OUTPUTS_DIR, `${videoId}.${tFmt}`);
+  await createJob({ id: jobId, videoId, owner, format: tFmt });
 
-  await createJob({ id: jobId, videoId, owner, format: tFmt, outPath });
-
-  // run ffmpeg asynchronously
   process.nextTick(async () => {
+    const tmpIn = await downloadOriginalToTmp({ owner, videoId, originalName: meta.originalName });
+    const tmpOut = path.join(process.env.TMPDIR || "/tmp", `${videoId}.${tFmt}`);
     try {
-      await updateStatus(jobId, "processing");
-      fs.mkdirSync(path.dirname(outPath), { recursive: true });
-      const args = buildArgs(v.original_path, outPath, tFmt);
+      await updateStatus(jobId, videoId, { status: "processing" });
+      const args = buildArgs(tmpIn, tmpOut, tFmt);
       await runFfmpeg(args);
-      await updateStatus(jobId, "done");
-      console.log(`[transcode] job=${jobId} done`);
+
+      const { bucket, key } = await uploadOutput({ owner, videoId, format: tFmt, localPath: tmpOut });
+      await updateStatus(jobId, videoId, { status: "done", outBucket: bucket, outKey: key });
     } catch (e) {
-      console.error(`[transcode] job=${jobId} error:`, e?.message || e);
-      await updateStatus(jobId, "error", String(e?.message || e));
+      await updateStatus(jobId, videoId, { status: "error", errorMsg: String(e?.message || e) });
+    } finally {
+      try { fs.unlinkSync(tmpIn); } catch {}
+      try { fs.unlinkSync(tmpOut); } catch {}
     }
   });
 
-  return res.status(202).json({ jobId, status: "queued" });
+  res.status(202).json({ jobId, status: "queued" });
 }
 
 async function getJob(req, res) {
-  const owner = getOwner(req);
-  if (!owner) return res.status(401).json({ error: "No user id in token" });
-
+  const owner = ownerOf(req);
   const j = await findJobByIdOwner(req.params.id, owner);
   if (!j) return res.status(404).json({ error: "Job not found" });
   res.json(j);
 }
 
-async function downloadOutput(req, res) {
-  const owner = getOwner(req);
-  if (!owner) return res.status(401).json({ error: "No user id in token" });
-
+async function downloadOutputCtrl(req, res) {
+  const owner = ownerOf(req);
   const videoId = req.params.id;
   const format = String(req.query.format || "").toLowerCase();
   if (!format) return res.status(400).json({ error: "format query param required" });
 
   const t = await findDoneOutput({ videoId, owner, format });
-  if (!t || !fs.existsSync(t.output_path)) {
-    return res.status(404).json({ error: "Output not ready" });
-  }
-  return res.download(t.output_path, `${videoId}.${format}`);
+  if (!t) return res.status(404).json({ error: "Output not ready" });
+
+  const url = await presign({ key: keyOutput(owner, videoId, format) });
+  res.json({ url });
 }
 
-module.exports = { requestTranscode, getJob, downloadOutput };
+module.exports = { requestTranscode, getJob, downloadOutput: downloadOutputCtrl };

@@ -1,8 +1,9 @@
+// src/routes/authRoutes.js
 const { Router } = require("express");
-const { login,me } = require("../controllers/authController");
-const { authenticateToken } = require("../../jwt");
-const router = Router();
+const { me } = require("../controllers/authController");
+const { authenticateCognito } = require("../middleware/cognitoAuth");
 
-router.post("/login", login);
-router.get("/me", authenticateToken, me);
+const router = Router();
+router.get("/me", authenticateCognito(), me);
+
 module.exports = router;

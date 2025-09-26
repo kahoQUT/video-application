@@ -5,79 +5,78 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Video Transcoder Client</title>
   <style>
-    :root {
-      --bg: #0f172a;
-      --card: #111827;
-      --text: #e5e7eb;
-      --muted: #9ca3af;
-      --accent: #60a5fa;
-      --danger: #ef4444;
-      --ok: #22c55e;
-      --warn: #f59e0b;
-      --border: #1f2937;
-    }
-    * { box-sizing: border-box; }
-    html, body { height: 100%; }
-    body {
-      margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial;
-      background: linear-gradient(180deg, #0b1220, #0f172a);
-      color: var(--text);
-    }
-    .container { max-width: 1100px; margin: 24px auto; padding: 0 16px; }
-    .grid { display: grid; gap: 16px; }
-    .two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    @media (max-width: 900px) { .two { grid-template-columns: 1fr; } }
+:root {
+  --bg: #0f172a;
+  --card: #111827;
+  --text: #e5e7eb;
+  --muted: #9ca3af;
+  --accent: #60a5fa;
+  --danger: #ef4444;
+  --ok: #22c55e;
+  --warn: #f59e0b;
+  --border: #1f2937;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial;
+  background: linear-gradient(180deg, #0b1220, #0f172a);
+  color: var(--text);
+}
+.container { max-width: 1100px; margin: 24px auto; padding: 0 16px; }
+.grid { display: grid; gap: 16px; }
+.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (max-width: 900px) { .two { grid-template-columns: 1fr; } }
 
-    .card {
-      background: linear-gradient(180deg, #0f172a, #0b1220);
-      border: 1px solid var(--border); border-radius: 14px;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.25);
-      padding: 16px; position: relative; overflow: hidden;
-    }
-    h1 { font-size: 28px; margin: 0 0 12px; letter-spacing: 0.3px; }
-    h2 { font-size: 18px; margin: 0 0 8px; color: var(--muted); font-weight: 600; }
-    label { display:block; margin: 8px 0 6px; color: var(--muted); font-size: 14px; }
-    input[type="text"], input[type="password"], select {
-      width: 100%; padding: 10px 12px; background: #0b1220; color: var(--text);
-      border: 1px solid var(--border); border-radius: 10px; outline: none;
-    }
-    button {
-      background: linear-gradient(180deg, #2563eb, #1d4ed8);
-      border: none; color: white; padding: 10px 14px; border-radius: 10px; cursor: pointer;
-      font-weight: 600; transition: transform .08s ease, opacity .2s;
-    }
-    button:hover { opacity: .95; }
-    button:active { transform: translateY(1px); }
-    button.ghost { background: transparent; border: 1px solid var(--border); color: var(--text); }
-    button.danger { background: linear-gradient(180deg, #ef4444, #dc2626); }
-    button.warn { background: linear-gradient(180deg, #f59e0b, #d97706); }
-    button.ok { background: linear-gradient(180deg, #16a34a, #15803d); }
+.card {
+  background: linear-gradient(180deg, #0f172a, #0b1220);
+  border: 1px solid var(--border); border-radius: 14px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+  padding: 16px; position: relative; overflow: hidden;
+}
+h1 { font-size: 28px; margin: 0 0 12px; letter-spacing: 0.3px; }
+h2 { font-size: 18px; margin: 0 0 8px; color: var(--muted); font-weight: 600; }
+label { display:block; margin: 8px 0 6px; color: var(--muted); font-size: 14px; }
+input[type="text"], input[type="password"], select {
+  width: 100%; padding: 10px 12px; background: #0b1220; color: var(--text);
+  border: 1px solid var(--border); border-radius: 10px; outline: none;
+}
+button {
+  background: linear-gradient(180deg, #2563eb, #1d4ed8);
+  border: none; color: white; padding: 10px 14px; border-radius: 10px; cursor: pointer;
+  font-weight: 600; transition: transform .08s ease, opacity .2s;
+}
+button:hover { opacity: .95; }
+button:active { transform: translateY(1px); }
+button.ghost { background: transparent; border: 1px solid var(--border); color: var(--text); }
+button.danger { background: linear-gradient(180deg, #ef4444, #dc2626); }
+button.warn { background: linear-gradient(180deg, #f59e0b, #d97706); }
+button.ok { background: linear-gradient(180deg, #16a34a, #15803d); }
 
-    .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-    .muted { color: var(--muted); font-size: 13px; }
-    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; }
-    .pill { padding: 2px 8px; border-radius: 999px; font-size: 12px; border: 1px solid var(--border); }
-    .status { text-transform: uppercase; letter-spacing: .06em; }
+.row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.muted { color: var(--muted); font-size: 13px; }
+.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; }
+.pill { padding: 2px 8px; border-radius: 999px; font-size: 12px; border: 1px solid var(--border); }
+.status { text-transform: uppercase; letter-spacing: .06em; }
 
-    .dropzone {
-      border: 2px dashed #374151; border-radius: 12px; padding: 20px; text-align: center;
-      background: #0b1220; color: var(--muted);
-    }
-    .dropzone.dragover { border-color: var(--accent); color: var(--text); }
-
-    table { width: 100%; border-collapse: collapse; }
-    th, td { border-bottom: 1px solid var(--border); padding: 10px; text-align: left; vertical-align: middle; }
-    th { color: var(--muted); font-size: 13px; font-weight: 600; }
-    tbody tr:hover { background: rgba(96,165,250,0.06); }
-	.tablewrap { overflow:auto; }
+.dropzone {
+  border: 2px dashed #374151; border-radius: 12px; padding: 20px; text-align: center;
+  background: #0b1220; color: var(--muted);
+}
+.dropzone.dragover { border-color: var(--accent); color: var(--text); }
+table { width: 100%; border-collapse: collapse; }
+th, td { border-bottom: 1px solid var(--border); padding: 10px; text-align: left; vertical-align: middle; }
+th { color: var(--muted); font-size: 13px; font-weight: 600; }
+tbody tr:hover { background: rgba(96,165,250,0.06); }
+    .tablewrap { overflow:auto; }
 #origTable, #outTable { min-width: 980px; }  /* ensures Actions column fits */
 
 
-    .progress { height: 8px; background: #111827; border-radius: 999px; overflow: hidden; border: 1px solid var(--border); }
-    .bar { height: 100%; width: 0%; background: linear-gradient(90deg, #60a5fa, #34d399); }
+.progress { height: 8px; background: #111827; border-radius: 999px; overflow: hidden; border: 1px solid var(--border); }
+.bar { height: 100%; width: 0%; background: linear-gradient(90deg, #60a5fa, #34d399); }
 
-    .footer { margin-top: 20px; color: var(--muted); font-size: 13px; }
-    .hidden { display: none !important; }
+.footer { margin-top: 20px; color: var(--muted); font-size: 13px; }
+.hidden { display: none !important; }
   </style>
 </head>
 <body>
@@ -98,14 +97,11 @@
       </div>
       <div>
         <h2>Login</h2>
-        <label for="username">Username</label>
-        <input id="username" type="text" placeholder="bob" />
-        <label for="password">Password</label>
-        <input id="password" type="password" placeholder="password1" />
-        <div class="row" style="margin-top:10px;">
-          <button id="loginBtn">Login</button>
-          <button class="ghost" id="logoutBtn">Logout</button>
-        </div>
+	<div id="authControls" style="margin-bottom: 1em;">
+	  <button id="btnLogin" type="button">Sign in</button>
+	  <button id="btnLogout" type="button" style="display:none;">Sign out</button>
+	  <span id="whoami" style="margin-left:1em; font-weight:bold;"></span>
+	</div>
         <p class="muted" style="margin-top:8px;">Token: <span id="tokenPreview" class="mono"></span></p>
       </div>
     </div>
@@ -170,6 +166,77 @@
     </div>
   </div>
 
+<script>
+// --- Cognito config ---
+const COGNITO = {
+  domain: "https://ap-southeast-2fsgrzaerz.auth.ap-southeast-2.amazoncognito.com", // replace
+  clientId: "1t7026rcc00tm72k5dc39vimcn",                                          // replace
+  redirectUri: "https://n12104353.cab432.com",                           // matches Cognito app client settings
+  scopes: ["openid","email","profile"]
+};
+
+// --- Token store ---
+const auth = {
+  token: null,
+  set(t) { this.token = t; localStorage.setItem("cog_token", JSON.stringify(t)); },
+  load() { try { this.token = JSON.parse(localStorage.getItem("cog_token")); } catch { this.token = null; } },
+  clear() { this.token = null; localStorage.removeItem("cog_token"); }
+};
+
+// --- Build Hosted UI URLs ---
+function loginUrl() {
+  const params = new URLSearchParams({
+    client_id: COGNITO.clientId,
+    response_type: "token", // implicit flow
+    scope: COGNITO.scopes.join(" "),
+    redirect_uri: COGNITO.redirectUri
+  });
+  return `${COGNITO.domain}/login?${params}`;
+}
+function logoutUrl() {
+  const params = new URLSearchParams({
+    client_id: COGNITO.clientId,
+    logout_uri: COGNITO.redirectUri
+  });
+  return `${COGNITO.domain}/logout?${params}`;
+}
+
+// --- Parse tokens from URL hash after redirect ---
+function parseHashTokens() {
+  if (!location.hash.startsWith("#")) return null;
+  const h = new URLSearchParams(location.hash.slice(1));
+  const idToken = h.get("id_token");
+  const accessToken = h.get("access_token");
+  const expiresIn = h.get("expires_in");
+  if (idToken || accessToken) {
+    history.replaceState({}, document.title, location.pathname + location.search);
+    return { id: idToken, access: accessToken, expiresAt: Date.now() + (Number(expiresIn)||0)*1000 };
+  }
+  return null;
+}
+
+// --- UI update ---
+function updateAuthUI() {
+  const loggedIn = !!auth.token?.access;
+  document.getElementById("btnLogin").style.display  = loggedIn ? "none" : "";
+  document.getElementById("btnLogout").style.display = loggedIn ? "" : "none";
+  document.getElementById("whoami").textContent = loggedIn ? `Logged in` : "";
+}
+
+// --- Event handlers ---
+document.getElementById("btnLogin").onclick  = () => { window.location = loginUrl(); };
+document.getElementById("btnLogout").onclick = () => { auth.clear(); updateAuthUI(); window.location = logoutUrl(); };
+
+// --- Init on page load ---
+window.addEventListener("DOMContentLoaded", async () => {
+  const found = parseHashTokens();
+  auth.load();
+  if (found) auth.set(found);
+  updateAuthUI();
+});
+
+</script>
+
   <script>
     const els = {
       baseUrl: document.getElementById('baseUrl'),
@@ -178,8 +245,6 @@
       pingResult: document.getElementById('pingResult'),
       username: document.getElementById('username'),
       password: document.getElementById('password'),
-      loginBtn: document.getElementById('loginBtn'),
-      logoutBtn: document.getElementById('logoutBtn'),
       tokenPreview: document.getElementById('tokenPreview'),
       dropzone: document.getElementById('dropzone'),
       fileInput: document.getElementById('fileInput'),
@@ -213,17 +278,19 @@
       return t.slice(0, 12) + '…' + t.slice(-12);
     }
 
-    async function api(path, { method = 'GET', body, isBlob = false } = {}) {
-      const headers = { 'Content-Type': 'application/json' };
-      if (state.token) headers['Authorization'] = 'Bearer ' + state.token;
-      const res = await fetch(state.baseUrl + path, { method, headers, body: body ? JSON.stringify(body) : undefined });
-      if (!res.ok) {
-        let msg = await res.text().catch(() => '');
-        try { const j = JSON.parse(msg); msg = j.error || msg; } catch {}
-        throw new Error(msg || res.status + ' ' + res.statusText);
-      }
-      return isBlob ? res.blob() : res.json();
-    }
+	async function api(path, { method='GET', body, isBlob=false } = {}) {
+	  const headers = {};
+	  if (!isBlob) headers['Content-Type'] = 'application/json';
+	  if (auth.token?.access) headers['Authorization'] = 'Bearer ' + auth.token.access;
+
+	  const res = await fetch((window.state?.baseUrl || '') + path, {
+	    method, headers, body: body && !isBlob ? JSON.stringify(body) : body,
+	    cache: 'no-store'
+	  });
+	  if (!res.ok) throw new Error(`HTTP ${res.status} ${await res.text()}`);
+	  return isBlob ? res.blob() : res.json();
+	}
+
 
     // Setup base URL
     els.baseUrl.value = state.baseUrl;
@@ -236,23 +303,6 @@
       try { const r = await fetch(state.baseUrl + '/healthz').then(r => r.json()); els.pingResult.textContent = r.ok ? 'Healthy ✓' : 'Unhealthy'; }
       catch (e) { els.pingResult.textContent = 'No response'; }
       setTimeout(() => els.pingResult.textContent = '', 2500);
-    });
-
-    // Auth
-    els.loginBtn.addEventListener('click', async () => {
-      const username = els.username.value.trim();
-      const password = els.password.value.trim();
-      if (!username || !password) return toast('Enter credentials', true);
-      try {
-        const r = await api('/login', { method: 'POST', body: { username, password } });
-        state.token = r.token; localStorage.setItem('token', state.token);
-        updateUIAuth();
-        await refresh();
-        toast('Logged in');
-      } catch (e) { toast('Login failed: ' + e.message, true); }
-    });
-    els.logoutBtn.addEventListener('click', () => {
-      state.token = ''; localStorage.removeItem('token'); updateUIAuth(); toast('Logged out');
     });
 
     // Uploads: dropzone + file input

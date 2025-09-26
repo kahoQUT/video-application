@@ -1,55 +1,65 @@
-const fs = require("fs");
 const path = require("path");
-const { ORIGINALS_DIR } = require("../services/storageService");
 const { makeId } = require("../services/idService");
-const { listVideosByOwner, createVideo, findVideoByIdOwner, listVideosAll } = require("../models/videoModel");
-const { listJobsByOwner, listJobsAll } = require("../models/transcodeModel");
+const { uploadOriginal, presign, keyOriginal } = require("../services/storageService");
+const { createVideo, listVideosByOwner /*, listVideosAll if you add it */ } = require("../models/videoModel");
+const { listJobsByOwner /*, listJobsAll */ } = require("../models/transcodeModel");
 
 async function upload(req, res) {
+  if (!req.user?.sub) return res.status(401).json({ error: "Not authenticated" });
   if (!req.files || !req.files.file) return res.status(400).json({ error: "No file uploaded" });
+
   const f = req.files.file;
-  const ext = path.extname(f.name) || "";
-  const vid = makeId("vid_");
-  const dest = path.join(ORIGINALS_DIR, `${vid}${ext}`);
-  await f.mv(dest);
-  await createVideo({ id: vid, owner: req.user.id, name: f.name, path: dest, size: f.size });
-  res.status(201).json({ id: vid, name: f.name, size: f.size || null });
+  const owner = req.user.sub;
+  const videoId = makeId("vid_");
+  const originalName = f.name;
+  const tmpPath = path.join(process.env.TMPDIR || "/tmp", `${videoId}-${originalName}`);
+
+  await f.mv(tmpPath);
+
+  // S3 put
+  const { bucket, key } = await uploadOriginal({
+    owner, videoId, localPath: tmpPath, originalName
+  });
+
+  await createVideo({
+    id: videoId,
+    owner,
+    name: originalName,
+    s3Bucket: bucket,
+    s3Key: key,
+    sizeBytes: f.size || null
+  });
+
+  try { require("fs").unlinkSync(tmpPath); } catch {}
+
+  res.status(201).json({ id: videoId, name: originalName });
 }
 
 async function listFiles(req, res) {
-  const owner = req.user?.id ?? req.user?.sub; // <= accept both, prefer .id
-  if (!owner) return res.status(401).json({ error: "No user id in token" });
-  const isAdmin = req.user?.role === "admin";
-const showAll = isAdmin ? true : false;
+  const owner = req.user?.id ?? req.user?.sub;
+  // Admin default “show all”? → iterate known users or add listAll; for now show per-owner
+  const vids = await listVideosByOwner(owner);
+  const jobs = await listJobsByOwner(owner);
 
-  let originals, outputs;
-  if (showAll) {
-    originals = await listVideosAll();
-    outputs   = await listJobsAll();
-  } else {
-    originals = await listVideosByOwner(owner);
-    outputs   = await listJobsByOwner(owner);
-  }
-
-  const scope = showAll ? "all" : "mine";
-  
-console.log(`[files] user=${req.user.username} role=${req.user.role} scope=${showAll ? "all" : "mine"} originals=${originals.length} outputs=${outputs.length}`);
-res.set("Cache-Control", "no-store, no-cache, must-revalidate");
-res.json({ originals, outputs, scope });
+  res.set("Cache-Control", "no-store");
+  res.json({ originals: vids.items ?? vids, outputs: jobs.items ?? jobs, scope: req.user.role === "admin" ? "mine" : "mine" });
 }
 
-async function download(req, res) {
-  const type = String(req.query.type || "original");
+// Original download: return a presigned URL (fastest)
+async function download(req, res, next) {
+  const type = String(req.query.type || "original").toLowerCase();
   if (type !== "original") return next();
-  const id = req.params.id;
 
-  if (type === "original") {
-    const v = await findVideoByIdOwner(id, req.user.sub);
-    if (!v || !fs.existsSync(v.original_path)) return res.status(404).json({ error: "File not found" });
-    return res.download(v.original_path, v.original_name);
-  }
-  // output download handled in transcodeController (needs format)
-  return res.status(400).json({ error: "Unknown type" });
+  const owner = req.user?.id ?? req.user?.sub;
+  const videoId = req.params.id;
+
+  // We need originalName to build the key → simplest: fetch metadata first
+  const { findVideoByIdOwner } = require("../models/videoModel");
+  const v = await findVideoByIdOwner(videoId, owner);
+  if (!v) return res.status(404).json({ error: "Video not found" });
+
+  const url = await presign({ key: keyOriginal(owner, videoId, v.originalName) });
+  res.json({ url });
 }
 
 module.exports = { upload, listFiles, download };

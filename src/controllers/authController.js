@@ -1,23 +1,14 @@
-const jwt = require("jsonwebtoken");
-const { generateAccessToken } = require("../../jwt");
-const JWT_SECRET = "e9aae26be08551392be664d620fb422350a30349899fc254a0f37bfa1b945e36ff20d25b12025e1067f9b69e8b8f2ef0f767f6fff6279e5755668bf4bae88588";
-// Simple hard-coded users (per assignment)
-const USERS = [
-  { id: 1, username: "admin", password: "admin", role: "admin" },
-  { id: 2, username: "bob", password: "password1", role: "user" },
-];
-
-function login(req, res) {
-  const { username, password } = req.body || {};
-  const user = USERS.find(u => u.username === username && u.password === password);
-  if (!user) return res.status(401).json({ error: "Invalid credentials" });
-	console.log("Successful login by user ($(user.role) ", username);
-	const token = generateAccessToken({ id: user.id, username: user.username, role: user.role });
-  res.json({ token });
-}
-
+// src/controllers/authController.js
 function me(req, res) {
-  res.json({ id: req.user.id, username: req.user.username, role: req.user.role });
+  if (!req.user) return res.status(401).json({ error: "Not authenticated" });
+  res.json({
+    sub: req.user.sub,
+    username: req.user.username,
+    role: req.user.role,
+    groups: req.user.claims["cognito:groups"] || [],
+    email: req.user.claims.email,
+    expiresAt: req.user.claims.exp ? new Date(req.user.claims.exp * 1000).toISOString() : null
+  });
 }
 
-module.exports = { login, me, USERS };
+module.exports = { me };
