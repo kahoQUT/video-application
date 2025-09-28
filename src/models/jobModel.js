@@ -11,7 +11,7 @@ const { v4: uuid } = require("uuid");
 
 const client = new DynamoDBClient({ region: 'ap-southeast-2'});
 const ddb = DynamoDBDocumentClient.from(client);
-const JOB_TABLE = "n12104353-Jobs";
+const JOB_TABLE = "Jobs";
 
 module.exports = {
   async create({ videoId, owner, targetFormat }) {
