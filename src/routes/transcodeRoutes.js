@@ -4,7 +4,7 @@ const transcodeController = require("../controllers/transcodeController");
 
 const router = Router();
 // Start a new transcode job
-router.post("/transcode", authenticateCognito(), transcodeController.startTranscode);
+router.post("/", authenticateCognito(), transcodeController.startTranscode);
 
 // Check job status
 router.get("/job/:id", authenticateCognito(), transcodeController.getJob);

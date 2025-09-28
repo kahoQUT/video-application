@@ -11,7 +11,7 @@ const { v4: uuid } = require("uuid");
 
 const client = new DynamoDBClient({ region: 'ap-southeast-2'});
 const ddb = DynamoDBDocumentClient.from(client);
-const JOB_TABLE = "Jobs";
+const JOB_TABLE = "n12104353-Jobs";
 
 module.exports = {
   async create({ videoId, owner, targetFormat }) {
@@ -19,6 +19,7 @@ module.exports = {
     const item = {
       id,
       video_id: videoId,
+      "qut-username": "n12104353@qut.edu.au",
       owner,
       target_format: targetFormat,
       status: "queued",
@@ -49,7 +50,10 @@ module.exports = {
 
   async getById(id) {
     const r = await ddb.send(
-      new GetCommand({ TableName: JOB_TABLE, Key: { id } })
+      new GetCommand({ TableName: JOB_TABLE, Key: {
+        "qut-username": "n12104353@qut.edu.au",
+        id
+      } })
     );
     return r.Item;
   },

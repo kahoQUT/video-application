@@ -10,13 +10,14 @@ const { v4: uuid } = require("uuid");
 
 const client = new DynamoDBClient({ region: 'ap-southeast-2' });
 const ddb = DynamoDBDocumentClient.from(client);
-const VIDEO_TABLE = "Videos";
+const VIDEO_TABLE = "n12104353-Videos";
 
 module.exports = {
   async createFromS3({ owner, key, originalName, sizeBytes }) {
     const id = `vid_${uuid()}`;
     const item = {
       id,
+      owner,
       "qut-username": "n12104353@qut.edu.au",
       s3_key: key,
       original_name: originalName,
@@ -41,7 +42,10 @@ module.exports = {
 
   async getById(id) {
     const r = await ddb.send(
-      new GetCommand({ TableName: VIDEO_TABLE, Key: { id } })
+      new GetCommand({ TableName: VIDEO_TABLE, Key: {
+        "qut-username": "n12104353@qut.edu.au",
+        id
+      } })
     );
     return r.Item;
   },
