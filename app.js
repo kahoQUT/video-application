@@ -1,7 +1,6 @@
 // app.js
 const express = require("express");
 const path = require("path");
-const morgan = require("morgan");
 const cors = require("cors");
 const fileUpload = require("express-fileupload");
 const bodyParser = require("body-parser");
@@ -10,6 +9,8 @@ const bodyParser = require("body-parser");
 const authRoutes = require("./src/routes/authRoutes");
 const fileRoutes = require("./src/routes/fileRoutes");
 const transcodeRoutes = require("./src/routes/transcodeRoutes");
+const healthRoutes = require("./src/routes/healthRoutes");
+const storageRoutes = require("./src/routes/storageRoutes");
 
 const app = express();
 
@@ -20,28 +21,15 @@ app.use(fileUpload({ useTempFiles: true, tempFileDir: "/tmp", createParentPath: 
 app.use(bodyParser.json());
 
 // ---------- Static web client ----------
-app.use(express.static(path.join(__dirname, "public"), {
-  setHeaders: (res, filePath) => {
-    if (filePath.endsWith(".css")) {
-      res.setHeader("Content-Type", "text/css");
-    }
-    if (filePath.endsWith(".js")) {
-      res.setHeader("Content-Type", "application/javascript");
-    }
-  }
-}));
+app.use(express.static(path.join(__dirname, "public")));
 
 // Routes
 app.use("/login", authRoutes);         // user login (JWT/Cognito)
-app.use("/files", fileRoutes);         // list files
-app.use("/upload", fileRoutes);        // file upload
-app.use("/transcode", transcodeRoutes);// start/view transcode jobs
-app.use("/download", fileRoutes);      // file download
-
+app.use('/files', fileRoutes);
+app.use('/presign', storageRoutes);
+app.use('/transcode', transcodeRoutes);
 // Health check
-app.get("/healthz", (req, res) => {
-  res.json({ status: "ok" });
-});
+app.get("/healthz", (req, res) => res.json({ ok: true }));
 
 // ---------- 404 & error handlers ----------
 app.use((req, res) => res.status(404).json({ error: "Not found" }));
@@ -53,8 +41,12 @@ app.use((err, req, res, next) => {
 });
 
 // ---------- Start server ----------
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`[boot] server listening on http://localhost:${PORT}`);
-});
-
+try {
+  const PORT =  3000;
+  app.listen(PORT, () => {
+    console.log(`[boot] server listening on http://localhost:${PORT}`);
+  });
+} catch (err) {
+  console.error("[boot] server failed", err);
+  process.exit(1);
+}

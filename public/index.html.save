@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -167,15 +168,12 @@ tbody tr:hover { background: rgba(96,165,250,0.06); }
   </div>
 
 <script>
-const API_BASE = "https://n12104353.cab432.com";
+const API_BASE = "https://n12104353.cab432.com/api";
 
 async function api(path, { method='GET', body, isBlob=false } = {}) {
   const headers = {};
   if (!isBlob) headers['Content-Type'] = 'application/json';
-  const token = auth.token?.access || state.token;
-  if (token) {
-    headers['Authorization'] = 'Bearer ' + token;
-  }
+  if (auth.token?.access) headers['Authorization'] = 'Bearer ' + auth.token.access;
 
   const res = await fetch(API_BASE + path, {
     method, headers, body: body && !isBlob ? JSON.stringify(body) : body,
@@ -226,12 +224,12 @@ function parseHash() {
     const accessToken = params.get("access_token");
     const idToken = params.get("id_token");
 
-	if (accessToken) {
+    if (accessToken) {
 	  auth.set({ access: accessToken, id: idToken });
 	  state.token = accessToken;                   // ✅ sync for uploader
 	  localStorage.setItem("token", accessToken);  // ✅ persist
 	  console.log("Access token loaded:", accessToken)
-	}
+  	}
   } else {
     // If no hash, try to load from localStorage
     auth.load();
@@ -299,6 +297,22 @@ window.onload = parseHash;
       return t.slice(0, 12) + '…' + t.slice(-12);
     }
 
+async function api(path, { method='GET', body, isBlob=false } = {}) {
+  const headers = {};
+  if (!isBlob) headers['Content-Type'] = 'application/json';
+  if (auth.token?.access) {
+	  headers['Authorization'] = 'Bearer ' + auth.token.access;
+	}
+
+  const res = await fetch((window.state?.baseUrl || '') + path, {
+    method, headers, body: body && !isBlob ? JSON.stringify(body) : body,
+    cache: 'no-store'
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status} ${await res.text()}`);
+  return isBlob ? res.blob() : res.json();
+}
+
+
     // Setup base URL
     els.baseUrl.value = state.baseUrl;
     els.saveBase.addEventListener('click', () => {
@@ -345,27 +359,43 @@ async function uploadFile(file) {
 
   try {
     // 1) Ask backend for presigned PUT URL
-	const presign = await api('/presign', { method: 'POST', body: { filename: file.name, contentType: file.type || "application/octet-stream" } });
-
-    // 2) Upload file directly to S3
-    const putRes = await fetch(presign.uploadUrl, {
-      method: 'PUT',
-      headers: { "Content-Type": file.type },
-      body: file
-    });
-    if (!putRes.ok) throw new Error(`S3 upload failed: ${putRes.status}`);
-	
-// 3) Register upload in DynamoDB
-    await api('/presign/upload', {
+    const { uploadUrl, key } = await api('/presign', {
       method: 'POST',
       body: {
-        id: presign.id,
-        key: presign.key,
+        filename: file.name,
+        contentType: file.type || 'application/octet-stream'
+      }
+    });
+
+    // 2) Upload file directly to S3
+    await new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('PUT', uploadUrl);
+      xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) {
+          const pct = Math.round((e.loaded / e.total) * 100);
+          bar.style.width = pct + '%';
+          status.textContent = pct + '%';
+        }
+      };
+      xhr.onload = () => (xhr.status >= 200 && xhr.status < 300)
+        ? resolve()
+        : reject(new Error(`S3 upload failed ${xhr.status}`));
+      xhr.onerror = () => reject(new Error('Network error'));
+      xhr.send(file);
+    });
+
+    // 3) Register the uploaded video metadata in DynamoDB
+    await api('/register-upload', {
+      method: 'POST',
+      body: {
+        key,
         originalName: file.name,
         sizeBytes: file.size
       }
     });
-	
+
     // 4) Mark complete in UI + refresh list
     bar.style.width = '100%';
     status.textContent = 'Done';
@@ -383,9 +413,7 @@ async function uploadFile(file) {
     // List files
     els.refreshBtn.addEventListener('click', refresh);
 async function refresh() {
-  const token = auth.token?.access || state.token;
-  if (!token) return; // no login, no refresh
-  
+  if (!state.token) return;
   try {
     const data = await api('/files');
     renderOriginals(data.originals || []);
@@ -503,17 +531,15 @@ function renderOutputs(items) {
       } catch (err) { toast('Check failed: ' + err.message, true); }
     }
 
-async function onDownloadOutput(e) {
-  const btn = e.currentTarget;
-  const vid = btn.getAttribute('data-video');
-  const format = btn.getAttribute('data-format');
-  try {
-    const { downloadUrl } = await api(`/download/${vid}?type=output&format=${encodeURIComponent(format)}`);
-    window.open(downloadUrl, '_blank'); // direct S3 download
-  } catch (err) {
-    toast('Download failed: ' + err.message, true);
-  }
-}
+    async function onDownloadOutput(e) {
+      const btn = e.currentTarget;
+      const vid = btn.getAttribute('data-video');
+      const format = btn.getAttribute('data-format');
+      try {
+        const blob = await api(`/download/${vid}?type=output&format=${encodeURIComponent(format)}`, { isBlob: true });
+        saveBlob(blob, `${vid}.${format}`);
+      } catch (err) { toast('Download failed: ' + err.message, true); }
+    }
 
     function saveBlob(blob, filenameBase) {
       const a = document.createElement('a');

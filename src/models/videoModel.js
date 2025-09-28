@@ -1,53 +1,53 @@
 const { DynamoDBClient } = require("@aws-sdk/client-dynamodb");
-const { DynamoDBDocumentClient, PutCommand, GetCommand, QueryCommand } = require("@aws-sdk/lib-dynamodb");
+const {
+  DynamoDBDocumentClient,
+  PutCommand,
+  GetCommand,
+  ScanCommand,
+  QueryCommand,
+} = require("@aws-sdk/lib-dynamodb");
+const { v4: uuid } = require("uuid");
 
-const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({ region: "ap-southeast-2" }));
-const TBL = "Videos";
+const client = new DynamoDBClient({ region: 'ap-southeast-2' });
+const ddb = DynamoDBDocumentClient.from(client);
+const VIDEO_TABLE = "Videos";
 
-/** Create a video metadata row */
-async function createVideo({ id, owner, name, s3Bucket, s3Key, sizeBytes }) {
-  const item = {
-    owner,
-    videoId: id,
-    originalName: name,
-    s3Bucket,
-    s3Key,
-    sizeBytes: sizeBytes ?? null,
-    createdAt: new Date().toISOString()
-  };
-  await ddb.send(new PutCommand({ TableName: TBL, Item: item }));
-  return id;
-}
+module.exports = {
+  async createFromS3({ owner, key, originalName, sizeBytes }) {
+    const id = `vid_${uuid()}`;
+    const item = {
+      id,
+      "qut-username": "n12104353@qut.edu.au",
+      s3_key: key,
+      original_name: originalName,
+      size_bytes: sizeBytes || 0,
+      created_at: new Date().toISOString(),
+    };
+    await ddb.send(new PutCommand({ TableName: VIDEO_TABLE, Item: item }));
+    return item;
+  },
 
-async function listVideosByOwner(owner, { limit = 50, cursor } = {}) {
-  const params = {
-    TableName: TBL,
-    KeyConditionExpression: "#o = :o",
-    ExpressionAttributeNames: { "#o": "owner" },
-    ExpressionAttributeValues: { ":o": owner },
-    Limit: limit,
-    ScanIndexForward: false,
-    ExclusiveStartKey: cursor ? JSON.parse(Buffer.from(cursor, "base64").toString()) : undefined
-  };
-  const out = await ddb.send(new QueryCommand(params));
-  return {
-    items: (out.Items || []).map(v => ({
-      id: v.videoId, owner: v.owner, name: v.originalName,
-      s3Bucket: v.s3Bucket, s3Key: v.s3Key, sizeBytes: v.sizeBytes, createdAt: v.createdAt
-    })),
-    nextCursor: out.LastEvaluatedKey ? Buffer.from(JSON.stringify(out.LastEvaluatedKey)).toString("base64") : null
-  };
-}
+  async listByOwner(ownerId) {
+	if (!ownerId) throw new Error("listByOwner called without ownerId");
+	const params = {
+	    TableName: VIDEO_TABLE,
+	    FilterExpression: "#o = :o",
+	    ExpressionAttributeNames: { "#o": "owner" },
+	    ExpressionAttributeValues: { ":o": ownerId }
+	  };
+	const data = await ddb.send(new ScanCommand(params));
+	return data.Items || [];
+  },
 
-async function listVideosAll({ limit = 100, cursor } = {}) {
-  // Simple owner-range iteration would require a scan; acceptable for demo/assessment.
-  // For large-scale, model a GSI. Here we just list by owner=1..N from your app’s users.
-  throw new Error("listVideosAll not implemented with scan in this snippet; call per-owner in controller or add a GSI.");
-}
+  async getById(id) {
+    const r = await ddb.send(
+      new GetCommand({ TableName: VIDEO_TABLE, Key: { id } })
+    );
+    return r.Item;
+  },
 
-async function findVideoByIdOwner(id, owner) {
-  const out = await ddb.send(new GetCommand({ TableName: TBL, Key: { owner: Number(owner), videoId: id } }));
-  return out.Item || null;
-}
-
-module.exports = { createVideo, listVideosByOwner, listVideosAll, findVideoByIdOwner };
+  async listAll() {
+    const r = await ddb.send(new ScanCommand({ TableName: VIDEO_TABLE }));
+    return r.Items || [];
+  },
+};

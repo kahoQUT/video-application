@@ -12,7 +12,7 @@ async function upload(req, res) {
   const owner = req.user.sub;
   const videoId = makeId("vid_");
   const originalName = f.name;
-  const tmpPath = path.join(process.env.TMPDIR || "/tmp", `${videoId}-${originalName}`);
+  const tmpPath = path.join("/tmp", `${videoId}-${originalName}`);
 
   await f.mv(tmpPath);
 
