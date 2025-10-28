@@ -54,7 +54,6 @@ exports.registerUpload = async (req, res) => {
       originalName,
       sizeBytes
     });
-
     res.json({ videoId: video.id });
   } catch (err) {
     console.error("registerUpload error", err);

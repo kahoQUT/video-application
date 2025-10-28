@@ -13,8 +13,7 @@ const ddb = DynamoDBDocumentClient.from(client);
 const VIDEO_TABLE = "n12104353-Videos";
 
 module.exports = {
-  async createFromS3({ owner, key, originalName, sizeBytes }) {
-    const id = `vid_${uuid()}`;
+  async createFromS3({ id, owner, key, originalName, sizeBytes }) {
     const item = {
       id,
       owner,
@@ -24,7 +23,12 @@ module.exports = {
       size_bytes: sizeBytes || 0,
       created_at: new Date().toISOString(),
     };
-    await ddb.send(new PutCommand({ TableName: VIDEO_TABLE, Item: item }));
+    try {
+    	await ddb.send(new PutCommand({ TableName: VIDEO_TABLE, Item: item }));
+    } catch (e) {
+	  console.error("Put failed:", e.name, e.message, e.$metadata)
+	  throw e
+    }
     return item;
   },
 

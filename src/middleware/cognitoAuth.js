@@ -32,6 +32,7 @@ function authenticateCognito() {
 
     try {
       const payload = await verifyAny(token);
+	console.log(payload);
       // Normalize user shape for controllers
       const sub = payload.sub;                         // stable user id (UUID)
       const username = payload["cognito:username"] || payload.username || payload.email || sub;

@@ -9,8 +9,10 @@ const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
 const videoModel = require("../models/videoModel");
 const jobModel = require("../models/jobModel");
 
-const s3 = new S3Client({ region: process.env.AWS_REGION });
-const BUCKET = process.env.S3_BUCKET;
+const s3 = new S3Client({ region: "ap-southeast-2" });
+const BUCKET = "n12104353-a2";
+
+const { sendJob } = require("../utils/sqs.js");
 
 // Kick off a transcode job (record job in DynamoDB)
 exports.startTranscode = async (req, res) => {
@@ -31,13 +33,18 @@ exports.startTranscode = async (req, res) => {
       targetFormat: format,
     });
 
-    // 👉 NOTE: A real worker (or Lambda) should process this job:
-    // 1. Download original from S3 with GetObjectCommand
-    // 2. Run ffmpeg to transcode
-    // 3. Upload output to S3 with PutObjectCommand
-    // 4. Update DynamoDB job status
-    // Here we just return the queued job info
-    res.json({ jobId: job.id });
+    res.json(job);
+
+  // Calling Lambda
+console.log(video.s3_key);
+job.s3_key = video.s3_key;
+console.log("Calling Lambda"+ JSON.stringify(job));
+await fetch("https://zd1ixf6x39.execute-api.ap-southeast-2.amazonaws.com/prod/sqs-api", {
+  method: "POST",
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify(job)
+});
+
   } catch (err) {
     console.error("startTranscode error", err);
     res.status(500).json({ error: "transcode failed" });

@@ -440,7 +440,7 @@ function renderOriginals(items) {
         const body = { videoId: vid, format: format || 'mp4' }; // ensure non-empty for API
         const r = await api('/transcode', { method: 'POST', body });
         toast('Queued job ' + r.jobId);
-        await refresh();
+	await refresh();
       } catch (err) {
         toast('Transcode failed: ' + err.message, true);
       }

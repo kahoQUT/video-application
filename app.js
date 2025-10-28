@@ -9,7 +9,6 @@ const bodyParser = require("body-parser");
 const authRoutes = require("./src/routes/authRoutes");
 const fileRoutes = require("./src/routes/fileRoutes");
 const transcodeRoutes = require("./src/routes/transcodeRoutes");
-const healthRoutes = require("./src/routes/healthRoutes");
 const storageRoutes = require("./src/routes/storageRoutes");
 
 const app = express();
@@ -30,7 +29,6 @@ app.use('/presign', storageRoutes);
 app.use('/transcode', transcodeRoutes);
 // Health check
 app.get("/healthz", (req, res) => res.json({ ok: true }));
-
 // ---------- 404 & error handlers ----------
 app.use((req, res) => res.status(404).json({ error: "Not found" }));
 
